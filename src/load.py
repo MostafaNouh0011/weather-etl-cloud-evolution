@@ -19,6 +19,10 @@ def load_raw(df: pd.DataFrame) -> int:
         logger.warning("Empty DataFrame — skipping load")
         return 0
     engine = get_engine()
+
+    if "local_time" in df.columns:
+        df["local_time"] = pd.to_datetime(df["local_time"], errors="coerce")
+        
     df.to_sql(
         name="weather_raw", schema="raw",
         con=engine, if_exists="append",
@@ -61,8 +65,7 @@ def load_summary():
             total_records      = EXCLUDED.total_records,
             last_updated       = NOW();
     """
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text(sql))
-        conn.commit()
     logger.info("analytics.weather_summary refreshed")
     engine.dispose()
