@@ -19,8 +19,8 @@ dag = DAG(
     dag_id="weather_etl_pipeline",
     description="Extract → Transform → Load weather data every 6 hours",
     default_args=default_args,
-    start_date=datetime(2024, 1, 1),
-    schedule_interval="0 */6 * * *",
+    start_date=datetime(2026, 5, 1),
+    schedule_interval="0 */6 * * *",   # run every 6 hours
     catchup=False,
     tags=["etl", "weather", "postgres"],
 )
