@@ -6,7 +6,7 @@
 # All sensitive values come from .env via ${VAR} substitution.
 
 x-airflow-common: &airflow-common
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.10.3}
+  build: .                            # uses Dockerfile — packages baked in at build time
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN}
@@ -22,9 +22,6 @@ x-airflow-common: &airflow-common
     WEATHER_DB_NAME: ${WEATHER_DB_NAME}
     WEATHER_DB_USER: ${WEATHER_DB_USER}
     WEATHER_DB_PASSWORD: ${WEATHER_DB_PASSWORD}
-    # Pandas is an optional extra in 2.10; ensure it's present along with the
-    # libs the ETL needs. For production, build a custom image instead.
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-pandas requests sqlalchemy psycopg2-binary}
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
@@ -113,19 +110,29 @@ services:
     command:
       - -c
       - |
-        mkdir -p /sources/logs /sources/dags /sources/plugins /sources/src
-        chown -R "${AIRFLOW_UID:-50000}:0" /sources/{logs,dags,plugins,src}
-        exec /entrypoint airflow version
+        airflow db migrate &&
+        airflow users create \
+          --username ${AIRFLOW_ADMIN_USERNAME:-admin} \
+          --password ${AIRFLOW_ADMIN_PASSWORD:-admin} \
+          --firstname Admin \
+          --lastname Admin \
+          --role Admin \
+          --email admin@airflow.com &&
+        airflow version
     environment:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
-      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-airflow}
-      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
-      _PIP_ADDITIONAL_REQUIREMENTS: ''
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-admin}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
     user: "0:0"
     volumes:
       - .:/sources
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./config:/opt/airflow/config
+      - ./plugins:/opt/airflow/plugins
+      - ./src:/opt/airflow/src
 
 volumes:
   airflow-db-data:
