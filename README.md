@@ -39,8 +39,8 @@ weather_etl_pipeline/
 │   └── load.py                    # Loads data into PostgreSQL
 ├── sql/
 │   └── init.sql                   # Creates database tables on startup
+├── docs/                          # Documents and images
 ├── logs/                          # Airflow logs (generated automatically)
-├── plugins/                       # Airflow plugins (for extensions)
 ├── .env                           # Environment variables (configure API keys, etc.)
 ├── docker-compose.yaml            # Defines Docker services
 ├── Dockerfile                     # Builds the custom Airflow image
@@ -121,16 +121,20 @@ Run these queries:
 
 ```sql
 -- View recent raw data
-SELECT city, temperature_c, humidity, ingested_at
+SELECT city, temperature_c, ingested_at
 FROM raw.weather_raw
 ORDER BY ingested_at DESC
 LIMIT 5;
+```
+![Raw Output](docs/raw_output.png)
 
+```
 -- View summary data
 SELECT city, record_date, avg_temperature_c, total_records
 FROM analytics.weather_summary
 ORDER BY record_date DESC;
 ```
+![Summary Output](docs/analytics_output.png)
 
 ## DAG Details
 
