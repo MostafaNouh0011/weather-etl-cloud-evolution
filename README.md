@@ -128,9 +128,9 @@ LIMIT 5;
 ```
 ![Raw Output](docs/raw_output.png)
 
-```
+```sql
 -- View summary data
-SELECT city, record_date, avg_temperature_c, total_records
+SELECT city, country, record_date, avg_temperature_c, max_temperature_c, min_temperature_c, avg_humidity, avg_wind_speed_kmh, dominant_condition, total_records, last_updated
 FROM analytics.weather_summary
 ORDER BY record_date DESC;
 ```
