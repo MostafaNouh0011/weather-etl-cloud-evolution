@@ -1,5 +1,15 @@
 .env
+.secrets/
 logs/
 __pycache__/
 *.pyc
 .venv/
+
+# Azure (v2) — local credentials & Databricks artefacts
+azure/.env
+azure/.databrickscfg
+azure/secrets/
+
+# IDE
+.vscode/
+.idea/

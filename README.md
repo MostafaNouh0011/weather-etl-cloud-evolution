@@ -1,8 +1,41 @@
 # Weather ETL Pipeline
 
-An end-to-end ETL (Extract, Transform, Load) pipeline that fetches current weather data from the Weatherstack API, processes it using Python, and stores it in PostgreSQL. The workflow is orchestrated by Apache Airflow and runs entirely in Docker containers for easy setup and deployment.
+A portfolio project that follows an ETL pipeline's lifecycle — from a local
+Dockerized MVP to a production-grade Azure-native system.
 
-## Architecture
+> **Started** as a local Airflow + PostgreSQL pipeline (10 cities, every 6 hours).
+> **Migrated** to Azure (ADF + Databricks + ADLS Gen2 + Delta Lake) to scale to
+> 100 cities on an hourly cadence, with cloud-native storage and
+> production-grade orchestration.
+
+The two versions live side-by-side in this repo on purpose — see
+[`docs/evolution.md`](./docs/evolution.md) for the full migration story, the
+*why* behind each design choice, and what was deliberately left out.
+
+---
+
+## Versions
+
+| Version | Stack | Cities | Cadence | Folder | Status |
+|---|---|---|---|---|---|
+| **v1 — Local** | Docker · Airflow · PostgreSQL · Pandas | 10 | every 6h | root of repo | ✅ Frozen at `v1.0.0` |
+| **v2 — Azure** | ADF · Databricks (PySpark) · ADLS Gen2 · Delta · Key Vault | 100 | hourly | [`azure/`](./azure/README.md) | ✅ Deployable via Bicep |
+
+| "I just want to…" | Go to |
+|---|---|
+| Run the local pipeline with one command | [v1 quick start](#v1--local-quick-start) below |
+| See the Azure architecture & deploy steps | [`azure/README.md`](./azure/README.md) |
+| Understand *why* the migration happened | [`docs/evolution.md`](./docs/evolution.md) |
+| See the v1 → v2 design comparison | [`docs/architecture/comparison.md`](./docs/architecture/comparison.md) |
+| Look at the city list | [`shared/cities.json`](./shared/cities.json) |
+
+---
+
+## v1 — Local (Docker + Airflow + PostgreSQL)
+
+A fully self-contained local pipeline. No cloud account, no surprises.
+
+### Architecture
 
 ```
 Weatherstack API → Extract → Transform → Load → PostgreSQL
@@ -10,114 +43,118 @@ Weatherstack API → Extract → Transform → Load → PostgreSQL
   HTTP/JSON     Raw JSON  Clean Data  Insert   Raw & Analytics Tables
 ```
 
-- **Extract**: Fetches weather data for 10 cities using the Weatherstack API.
-- **Transform**: Cleans and parses the raw JSON into a structured format using Pandas.
-- **Load**: Inserts data into PostgreSQL tables via SQLAlchemy.
-- **Orchestration**: Apache Airflow schedules the pipeline every 6 hours.
+- **Extract** — fetches current weather for 10 cities from the Weatherstack API.
+- **Transform** — parses and cleans the raw JSON into a structured format with Pandas.
+- **Load** — inserts into PostgreSQL tables via SQLAlchemy.
+- **Orchestration** — Apache Airflow schedules the pipeline every 6 hours.
 
-All components run in Docker — no local installations needed.
+All components run in Docker — no local Python, Postgres, or Airflow install needed.
 
-## Tech Stack
+### Tech Stack
 
-- **Python 3.11**: Handles ETL logic.
-- **Weatherstack API**: Provides real-time weather data.
-- **PostgreSQL 13**: Stores raw and processed data.
-- **Apache Airflow 2.10.3**: Manages and schedules the pipeline.
-- **Docker & Docker Compose**: Containerizes the entire setup.
-- **SQLAlchemy**: Connects to the database.
-- **Pandas**: Processes and cleans data.
+- **Python 3.11** — ETL logic
+- **Weatherstack API** — real-time weather data
+- **PostgreSQL 13** — raw and analytics layers
+- **Apache Airflow 2.10.3** — orchestration
+- **Docker & Docker Compose** — containerization
+- **SQLAlchemy** — DB connectivity
+- **Pandas** — data processing
 
-## Project Structure
+### Project Structure (v1)
 
 ```
 weather_etl_pipeline/
-├── dags/
-│   └── weather_pipeline_dag.py    # Airflow DAG defining the ETL tasks
-├── src/
-│   ├── extract.py                 # Fetches data from Weatherstack API
-│   ├── transform.py               # Cleans and transforms the data
-│   └── load.py                    # Loads data into PostgreSQL
-├── sql/
-│   └── init.sql                   # Creates database tables on startup
-├── logs/                          # Airflow logs (generated automatically)
-├── plugins/                       # Airflow plugins (for extensions)
-├── .env                           # Environment variables (configure API keys, etc.)
-├── docker-compose.yaml            # Defines Docker services
-├── Dockerfile                     # Builds the custom Airflow image
-├── requirements.txt               # Python dependencies
-└── README.md                      # This file
+├── dags/                              # Airflow DAGs
+│   └── weather_pipeline_dag.py
+├── src/                               # ETL logic
+│   ├── extract.py
+│   ├── transform.py
+│   └── load.py
+├── sql/                               # Schema bootstrap
+│   └── init.sql
+├── logs/                              # Airflow logs (gitignored, generated)
+├── plugins/                           # Airflow plugins
+├── shared/                            # Shared between v1 and v2
+│   └── cities.json                    # Canonical 10-city list
+├── docs/                              # Documentation
+│   ├── evolution.md                   # v1 → v2 migration story
+│   ├── architecture/
+│   │   ├── v1-local.png
+│   │   ├── v2-azure.png
+│   │   └── comparison.md
+│   ├── ETL_DAG.png
+│   ├── analytics_output.png
+│   ├── pipeline_architecture.png
+│   └── raw_output.png
+├── .env.example                       # Environment template (copy to .env)
+├── docker-compose.yaml                # 4 services: webserver, scheduler, 2 Postgres
+├── Dockerfile                         # Custom Airflow image
+├── requirements.txt                   # Python dependencies
+├── Makefile                           # Convenience commands
+└── README.md                          # ← you are here
 ```
 
-## Prerequisites
+### Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) installed and running.
 - A free API key from [Weatherstack](https://weatherstack.com) (sign up for a free account).
 
 That's all — no need to install Python, PostgreSQL, or Airflow locally.
 
-## Getting Started
+### Quick Start
 
-### 1. Clone the Repository
+#### 1. Clone the repository
 
 ```bash
 git clone https://github.com/MostafaNouh0011/weather-etl-pipeline.git
 cd weather-etl-pipeline
 ```
 
-### 2. Set Up Environment Variables
-
-Copy the example environment file and edit it:
+#### 2. Configure environment variables
 
 ```bash
-cp .env .env  # (Already exists; edit directly)
+cp .env.example .env
 ```
 
-Open `.env` and add your Weatherstack API key. The other values are pre-configured for Docker:
+Open `.env` and replace `your_weatherstack_api_key_here` with your real
+Weatherstack API key. The other values are pre-configured for the local
+Docker setup.
 
-```env
-WEATHERSTACK_API_KEY=your_api_key_here
-# Other variables are set for local development
-```
-
-### 3. Build and Start the Containers
-
-Build the Docker images and start the services:
+#### 3. Build and start the containers
 
 ```bash
 docker compose build
 docker compose up -d
 ```
 
-This starts 4 services: Airflow webserver, scheduler, and two PostgreSQL databases.
+This starts 4 services: Airflow webserver, scheduler, and two PostgreSQL
+databases (one for Airflow metadata, one for your data).
 
-### 4. Wait for Initialization
-
-Monitor the setup logs:
+#### 4. Wait for initialization
 
 ```bash
 docker compose logs -f airflow-init
 ```
 
-Wait until you see "Admin user created" and the version output, then press `Ctrl+C`.
+Wait until you see "Admin user created" and the version output, then `Ctrl+C`.
 
-### 5. Access the Airflow UI
+#### 5. Access the Airflow UI
 
 Open [http://localhost:8080](http://localhost:8080) in your browser.
 
-- **Username**: admin
-- **Password**: admin
+- **Username:** `admin`
+- **Password:** `admin`
 
-Find the `weather_etl_pipeline` DAG, toggle it **ON**, and click the play button (▶) to run it manually.
+Find the `weather_etl_pipeline` DAG, toggle it **ON**, and click ▶ to trigger
+a manual run.
 
-### 6. Check the Data
+#### 6. Check the data
 
-Connect to the weather database (exposed on port 5433):
+Connect to the weather database (exposed on port `5433`):
 
 ```bash
 docker compose exec weather_postgres psql -U weather_user -d weather_db
 ```
-
-Run these queries:
 
 ```sql
 -- View recent raw data
@@ -132,62 +169,27 @@ FROM analytics.weather_summary
 ORDER BY record_date DESC;
 ```
 
-## DAG Details
+### v1 DAG details
 
 The pipeline runs three tasks in sequence:
 
-- **Extract**: Calls the API for 10 cities and stores raw responses.
-- **Transform**: Parses and cleans the data into a usable format.
-- **Load**: Saves data to PostgreSQL and updates summaries.
+- **extract** — calls the API for 10 cities and stores raw responses.
+- **transform** — parses and cleans the data into a usable format.
+- **load** — saves data to PostgreSQL and updates the daily summary.
 
-**Schedule**: Every 6 hours.  
-**Retries**: 2 times with 5-minute delays.  
-**Catchup**: Disabled (only runs future schedules).
+| Setting | Value |
+|---|---|
+| Schedule | `0 */6 * * *` (every 6 hours) |
+| Retries | 2 attempts, 5 min delay |
+| Catchup | Disabled (only future runs) |
+| Executor | `LocalExecutor` |
 
-## Database Schema
+### v1 Database Schema
 
-The pipeline uses two schemas:
+The pipeline uses two schemas inside `weather_db`.
 
-### Raw Layer (`raw.weather_raw`)
-Stores every API response as-is.
+#### Raw Layer — `raw.weather_raw` (Bronze)
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | SERIAL | Primary key |
-| city | VARCHAR | City name |
-| country | VARCHAR | Country |
-| temperature_c | FLOAT | Temperature in Celsius |
-| humidity | INT | Humidity percentage |
-| wind_speed_kmh | FLOAT | Wind speed |
-| ... | ... | Other weather fields |
-| ingested_at | TIMESTAMP | When data was loaded |
-
-### Analytics Layer (`analytics.weather_summary`)
-Aggregates daily weather stats per city.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| city | VARCHAR | City name |
-| record_date | DATE | Date of records |
-| avg_temperature_c | FLOAT | Daily average temperature |
-| max_temperature_c | FLOAT | Daily max temperature |
-| min_temperature_c | FLOAT | Daily min temperature |
-| avg_humidity | FLOAT | Daily average humidity |
-| total_records | INT | Number of records |
-| last_updated | TIMESTAMP | Last update time |
-
-## Troubleshooting
-
-- **Containers won't start**: Ensure Docker is running and ports 8080/5433 are free.
-- **API errors**: Check your Weatherstack API key in `.env`.
-- **DAG fails**: View logs in the Airflow UI or check `logs/` folder.
-- **Database connection issues**: Verify PostgreSQL is healthy with `docker compose ps`.
-
-For more help, check the Airflow documentation or open an issue on GitHub.
-
-## Database Schema
-
-### `raw.weather_raw` — Bronze Layer
 Stores every API response exactly as received, one row per city per pipeline run.
 
 | Column | Type | Description |
@@ -206,8 +208,9 @@ Stores every API response exactly as received, one row per city per pipeline run
 | `is_day` | BOOLEAN | Whether it's daytime |
 | `ingested_at` | TIMESTAMP | When the row was inserted |
 
-### `analytics.weather_summary` — Gold Layer
-Daily aggregated weather per city. Refreshed on every pipeline run using upsert.
+#### Analytics Layer — `analytics.weather_summary` (Gold)
+
+Daily aggregated weather per city. Refreshed on every pipeline run using `ON CONFLICT` upsert.
 
 | Column | Type | Description |
 |---|---|---|
@@ -221,9 +224,7 @@ Daily aggregated weather per city. Refreshed on every pipeline run using upsert.
 | `dominant_condition` | VARCHAR | Most frequent weather condition |
 | `total_records` | INT | Number of raw records aggregated |
 
----
-
-## Makefile Commands
+### Makefile Commands
 
 ```bash
 make build    # Build Docker images
@@ -234,17 +235,14 @@ make logs     # Stream scheduler logs
 make psql     # Open PostgreSQL shell in weather DB
 ```
 
----
-
-## Cities Tracked
+### Cities Tracked (v1)
 
 Cairo · Alexandria · Dubai · London · New York · Paris · Tokyo · Sydney · Berlin · Toronto
 
-To add or change cities, edit the `CITIES` list in `src/extract.py`.
+The full list lives in [`shared/cities.json`](./shared/cities.json).
+v2 expands this to 100 cities on an hourly cadence.
 
----
-
-## Environment Variables Reference
+### Environment Variables (v1)
 
 | Variable | Description |
 |---|---|
@@ -257,6 +255,71 @@ To add or change cities, edit the `CITIES` list in `src/extract.py`.
 | `AIRFLOW__CORE__FERNET_KEY` | Encryption key for Airflow secrets |
 | `AIRFLOW_ADMIN_USERNAME` | Airflow UI username |
 | `AIRFLOW_ADMIN_PASSWORD` | Airflow UI password |
+
+### Troubleshooting (v1)
+
+- **Containers won't start** — ensure Docker is running and ports `8080` and `5433` are free.
+- **API errors** — check your Weatherstack API key in `.env`.
+- **DAG fails** — view logs in the Airflow UI or check the `logs/` folder.
+- **Database connection issues** — verify Postgres is healthy with `docker compose ps`.
+
+For more help, check the [Airflow documentation](https://airflow.apache.org/docs/)
+or open an issue on GitHub.
+
+---
+
+## v2 — Azure (ADF + Databricks + ADLS Gen2)
+
+The same ETL problem, scaled to 100 cities on an hourly cadence, designed as
+a cloud-native Medallion architecture.
+
+👉 **See [`azure/README.md`](./azure/README.md) for the full Azure setup,
+architecture, and deploy guide.**
+
+Quick architectural summary:
+
+```
+Weatherstack API
+       │  HTTP (parallel, 10 workers)
+       ▼
+┌──────────────────────────┐
+│ Azure Data Factory       │   hourly schedule trigger
+│   • 3 Notebook activities│   (Bronze → Silver → Gold)
+│   • retries, alerts      │
+└──────────┬───────────────┘
+           ▼
+┌──────────────────────────┐
+│ Azure Databricks         │   job cluster per run, no idle cost
+│  NB1 Bronze  → NB2 Silver│   PySpark, parallel API calls
+│  → NB3 Gold             │   Delta Lake on ADLS Gen2
+└──────────┬───────────────┘
+           ▼
+┌──────────────────────────┐
+│ ADLS Gen2                │
+│  bronze/  silver/  gold/ │   Delta on Silver + Gold
+└──────────────────────────┘
+```
+
+**Why this shape:** ADF for native orchestration, Databricks for distributed
+compute, Delta for schema evolution + time travel + `MERGE`, and the
+Medallion pattern as the universal data-engineering lingua franca.
+
+---
+
+## Why both versions exist
+
+The two versions are not redundant — they prove two different competencies:
+
+- **v1** shows you can build a working ETL pipeline from scratch with
+  fundamentals: Docker, Airflow, Postgres, ETL design, secrets management.
+- **v2** shows you can take that same problem and re-design it for the
+  cloud: distributed compute, decoupled storage, native orchestration,
+  schema evolution, and cost discipline.
+
+The deliberate choice to keep v1 untouched (no shared library between the
+two) makes the *contrast* between the architectures visible. See
+[`docs/evolution.md`](./docs/evolution.md) for the detailed migration
+rationale and lessons learned.
 
 ---
 
