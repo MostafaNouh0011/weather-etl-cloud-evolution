@@ -103,6 +103,19 @@ module dataFactory 'modules/datafactory.bicep' = {
   }
 }
 
+// Service principal for the ADF → Databricks linked service.
+// Deployed AFTER keyVault so the SP's client secret can be stored in
+// the vault as part of the same deployment.
+module servicePrincipal 'modules/serviceprincipal.bicep' = {
+  name: 'servicePrincipal'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
+    keyVaultId: keyVault.id
+  }
+}
+
 // ----------------------------------------------------------------------------
 // Cross-module role assignments
 // ----------------------------------------------------------------------------
@@ -135,3 +148,10 @@ output databricksWorkspaceName string = databricks.outputs.databricksWorkspaceNa
 output databricksWorkspaceUrl string = databricks.outputs.databricksWorkspaceUrl
 output dataFactoryName string = dataFactory.outputs.dataFactoryName
 output logAnalyticsWorkspaceName string = logAnalytics.outputs.logAnalyticsWorkspaceName
+// SP outputs — the ADF linked service uses these to authenticate to
+// the Databricks workspace. The secret VALUE is exposed only as the
+// Key Vault secret URI, never in plain text; the value is available
+// only at deploy time via `az deployment ... --query`.
+output servicePrincipalAppId string = servicePrincipal.outputs.servicePrincipalAppId
+output servicePrincipalObjectId string = servicePrincipal.outputs.servicePrincipalObjectId
+output servicePrincipalClientSecretUri string = servicePrincipal.outputs.servicePrincipalClientSecretUri
