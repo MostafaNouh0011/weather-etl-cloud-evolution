@@ -1,0 +1,31 @@
+{
+  "name": "ls_databricks",
+  "type": "Microsoft.DataFactory/factories/linkedservices",
+  "properties": {
+    "type": "AzureDatabricks",
+    "typeProperties": {
+      "domain": "https://<DATABRICKS_WORKSPACE_URL>",
+      "accessToken": {
+        "type": "AzureKeyVaultSecret",
+        "store": {
+          "referenceName": "ls_keyvault",
+          "type": "LinkedServiceReference"
+        },
+        "secretName": "databricks-sp-client-secret"
+      },
+      "workspaceResourceId": "<DATABRICKS_WORKSPACE_RESOURCE_ID>",
+      "instancePool": {
+        "enableAutoscale": true,
+        "minNumberOfWorkers": 1,
+        "maxNumberOfWorkers": 4,
+        "poolName": "<JOB_CLUSTER_POOL_NAME_OPTIONAL>"
+      },
+      "newClusterNumOfWorker": 4,
+      "newClusterNodeType": "Standard_DS3_v2",
+      "newClusterSparkEnvVars": {
+        "PYSPARK_PYTHON": "/databricks/python3/bin/python3"
+      },
+      "newClusterVersion": "13.3.x-scala2.12"
+    }
+  }
+}

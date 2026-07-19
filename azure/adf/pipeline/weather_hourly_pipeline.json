@@ -1,0 +1,139 @@
+{
+  "name": "weather_hourly_pipeline",
+  "type": "Microsoft.DataFactory/factories/pipelines",
+  "properties": {
+    "description": "Hourly Weather ETL: Bronze (parallel API) → Silver (cleansing + MERGE) → Gold (hourly + daily aggregates). Idempotent end-to-end; re-running a single stage is safe because every stage writes via Delta MERGE.",
+    "annotations": [
+      "v2",
+      "medallion",
+      "weather"
+    ],
+    "concurrency": 1,
+    "variables": {
+      "run_year": {
+        "type": "String",
+        "defaultValue": "@formatDateTime(utcNow(), 'yyyy')"
+      },
+      "run_month": {
+        "type": "String",
+        "defaultValue": "@formatDateTime(utcNow(), 'MM')"
+      },
+      "run_day": {
+        "type": "String",
+        "defaultValue": "@formatDateTime(utcNow(), 'dd')"
+      },
+      "run_hour": {
+        "type": "String",
+        "defaultValue": "@formatDateTime(utcNow(), 'HH')"
+      }
+    },
+    "activities": [
+      {
+        "name": "nb_bronze_ingest",
+        "type": "DatabricksNotebook",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "01:00:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 60,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "userProperties": [],
+        "typeProperties": {
+          "notebookPath": "/Shared/weather/01_bronze_ingest",
+          "baseParameters": {
+            "storage_account": "<STORAGE_ACCOUNT_NAME>",
+            "scope": "kv-scope",
+            "api_key_name": "weatherstack-api-key",
+            "env_fallback": "WEATHERSTACK_API_KEY",
+            "max_workers": "10"
+          },
+          "libraries": []
+        },
+        "linkedServiceName": {
+          "referenceName": "ls_databricks",
+          "type": "LinkedServiceReference"
+        }
+      },
+      {
+        "name": "nb_silver_cleanse",
+        "type": "DatabricksNotebook",
+        "dependsOn": [
+          {
+            "activity": "nb_bronze_ingest",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "policy": {
+          "timeout": "00:30:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 60,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "userProperties": [],
+        "typeProperties": {
+          "notebookPath": "/Shared/weather/02_silver_cleanse",
+          "baseParameters": {
+            "storage_account": "<STORAGE_ACCOUNT_NAME>",
+            "run_year": "@variables('run_year')",
+            "run_month": "@variables('run_month')",
+            "run_day": "@variables('run_day')",
+            "run_hour": "@variables('run_hour')"
+          },
+          "libraries": []
+        },
+        "linkedServiceName": {
+          "referenceName": "ls_databricks",
+          "type": "LinkedServiceReference"
+        }
+      },
+      {
+        "name": "nb_gold_aggregate",
+        "type": "DatabricksNotebook",
+        "dependsOn": [
+          {
+            "activity": "nb_silver_cleanse",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "policy": {
+          "timeout": "00:30:00",
+          "retry": 3,
+          "retryIntervalInSeconds": 60,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "userProperties": [],
+        "typeProperties": {
+          "notebookPath": "/Shared/weather/03_gold_aggregate",
+          "baseParameters": {
+            "storage_account": "<STORAGE_ACCOUNT_NAME>",
+            "run_year": "@variables('run_year')",
+            "run_month": "@variables('run_month')",
+            "run_day": "@variables('run_day')",
+            "run_hour": "@variables('run_hour')"
+          },
+          "libraries": []
+        },
+        "linkedServiceName": {
+          "referenceName": "ls_databricks",
+          "type": "LinkedServiceReference"
+        }
+      }
+    ],
+    "policy": {
+      "elapsedTimeMetric": {
+        "duration": "0.02:00:00"
+      }
+    },
+    "folder": {
+      "name": "weather"
+    }
+  }
+}

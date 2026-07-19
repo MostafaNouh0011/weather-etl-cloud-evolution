@@ -1,0 +1,24 @@
+{
+  "name": "ds_cities_config",
+  "type": "Microsoft.DataFactory/factories/datasets",
+  "properties": {
+    "type": "Json",
+    "linkedServiceName": {
+      "referenceName": "ls_adls",
+      "type": "LinkedServiceReference"
+    },
+    "parameters": {
+      "fileName": {
+        "type": "String",
+        "defaultValue": "cities.json"
+      }
+    },
+    "typeProperties": {
+      "location": {
+        "type": "AzureBlobFSLocation",
+        "fileSystem": "config",
+        "folderPath": ""
+      }
+    }
+  }
+}
