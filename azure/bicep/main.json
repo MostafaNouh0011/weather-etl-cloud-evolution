@@ -1,0 +1,839 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.45.15.27210",
+      "templateHash": "5884241236580937997"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for every resource."
+      }
+    },
+    "projectName": {
+      "type": "string",
+      "maxLength": 8,
+      "metadata": {
+        "description": "Short project slug used in resource naming (e.g. \"weather\")."
+      }
+    },
+    "environment": {
+      "type": "string",
+      "defaultValue": "dev",
+      "maxLength": 5,
+      "metadata": {
+        "description": "Environment slug, e.g. \"dev\" or \"prod\"."
+      }
+    },
+    "storageAccountSku": {
+      "type": "string",
+      "defaultValue": "Standard_LRS",
+      "metadata": {
+        "description": "Storage account SKU. Standard_LRS for dev."
+      }
+    },
+    "databricksSku": {
+      "type": "string",
+      "defaultValue": "standard",
+      "metadata": {
+        "description": "Databricks SKU: standard / premium / trial."
+      }
+    },
+    "keyVaultSku": {
+      "type": "string",
+      "defaultValue": "standard",
+      "metadata": {
+        "description": "Key Vault SKU. standard is fine for v1 of v2."
+      }
+    },
+    "logAnalyticsRetentionDays": {
+      "type": "int",
+      "defaultValue": 30,
+      "metadata": {
+        "description": "Log Analytics retention in days."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "logAnalytics",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "projectName": {
+            "value": "[parameters('projectName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "logAnalyticsRetentionDays": {
+            "value": "[parameters('logAnalyticsRetentionDays')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.45.15.27210",
+              "templateHash": "14799401537654319142"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region. Inherited from the parent template."
+              }
+            },
+            "projectName": {
+              "type": "string",
+              "metadata": {
+                "description": "Short project slug used in resource naming (e.g. \"weather\")."
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment slug, e.g. \"dev\" or \"prod\"."
+              }
+            },
+            "logAnalyticsRetentionDays": {
+              "type": "int",
+              "defaultValue": 30,
+              "metadata": {
+                "description": "Retention in days for the default analytics table."
+              }
+            }
+          },
+          "variables": {
+            "workspaceName": "[toLower(format('log-{0}-{1}-{2}', parameters('projectName'), parameters('environment'), uniqueString(resourceGroup().id, parameters('projectName'), parameters('environment'))))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[variables('workspaceName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": "[parameters('logAnalyticsRetentionDays')]",
+                "features": {
+                  "enableLogAccessUsingOnlyResourcePermissions": true
+                }
+              },
+              "tags": {
+                "project": "[parameters('projectName')]",
+                "environment": "[parameters('environment')]"
+              }
+            }
+          ],
+          "outputs": {
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]"
+            },
+            "logAnalyticsWorkspaceName": {
+              "type": "string",
+              "value": "[variables('workspaceName')]"
+            },
+            "logAnalyticsCustomerId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName')), '2023-09-01').customerId]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "storage",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "projectName": {
+            "value": "[parameters('projectName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "storageAccountSku": {
+            "value": "[parameters('storageAccountSku')]"
+          },
+          "databricksManagedIdentityObjectId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'databricks'), '2025-04-01').outputs.databricksManagedIdentityObjectId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.45.15.27210",
+              "templateHash": "5654021675029413528"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region. Inherited from the parent template."
+              }
+            },
+            "projectName": {
+              "type": "string",
+              "metadata": {
+                "description": "Short project slug used in resource naming (e.g. \"weather\")."
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment slug, e.g. \"dev\" or \"prod\"."
+              }
+            },
+            "storageAccountSku": {
+              "type": "string",
+              "defaultValue": "Standard_LRS",
+              "metadata": {
+                "description": "Storage account SKU. Standard_LRS is the dev default."
+              }
+            },
+            "databricksManagedIdentityObjectId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "AAD object ID of the Databricks workspace managed identity. When empty, the role assignment is skipped (useful for isolated tests)."
+              }
+            }
+          },
+          "variables": {
+            "storageAccountHash": "[take(uniqueString(resourceGroup().id, parameters('projectName'), parameters('environment')), 10)]",
+            "storageAccountName": "[toLower(format('{0}{1}{2}', parameters('projectName'), parameters('environment'), variables('storageAccountHash')))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('storageAccountSku')]"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "isHnsEnabled": true,
+                "minimumTlsVersion": "TLS1_2",
+                "supportsHttpsTrafficOnly": true,
+                "allowBlobPublicAccess": false,
+                "allowSharedKeyAccess": false,
+                "accessTier": "Hot",
+                "networkAcls": {
+                  "defaultAction": "Allow",
+                  "bypass": "AzureServices"
+                }
+              },
+              "tags": {
+                "project": "[parameters('projectName')]",
+                "environment": "[parameters('environment')]",
+                "layer": "storage"
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/default/bronze', variables('storageAccountName'))]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/default/silver', variables('storageAccountName'))]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/default/gold', variables('storageAccountName'))]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/default/config', variables('storageAccountName'))]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('databricksManagedIdentityObjectId')))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), parameters('databricksManagedIdentityObjectId'), 'blob-contributor')]",
+              "properties": {
+                "principalId": "[parameters('databricksManagedIdentityObjectId')]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9ee')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "storageAccountName": {
+              "type": "string",
+              "value": "[variables('storageAccountName')]"
+            },
+            "primaryBlobEndpoint": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-05-01').primaryEndpoints.blob]"
+            },
+            "bronzeContainerName": {
+              "type": "string",
+              "value": "[format('{0}/default/bronze', variables('storageAccountName'))]"
+            },
+            "silverContainerName": {
+              "type": "string",
+              "value": "[format('{0}/default/silver', variables('storageAccountName'))]"
+            },
+            "goldContainerName": {
+              "type": "string",
+              "value": "[format('{0}/default/gold', variables('storageAccountName'))]"
+            },
+            "configContainerName": {
+              "type": "string",
+              "value": "[format('{0}/default/config', variables('storageAccountName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'databricks')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "databricks",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "projectName": {
+            "value": "[parameters('projectName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "databricksSku": {
+            "value": "[parameters('databricksSku')]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'logAnalytics'), '2025-04-01').outputs.logAnalyticsWorkspaceId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.45.15.27210",
+              "templateHash": "6652029098999461554"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region. Inherited from the parent template."
+              }
+            },
+            "projectName": {
+              "type": "string",
+              "metadata": {
+                "description": "Short project slug used in resource naming (e.g. \"weather\")."
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment slug, e.g. \"dev\" or \"prod\"."
+              }
+            },
+            "databricksSku": {
+              "type": "string",
+              "defaultValue": "standard",
+              "metadata": {
+                "description": "Databricks SKU: \"standard\", \"premium\", or \"trial\". Premium is required for jobs clusters + Delta Live Tables; standard is enough for plain Delta + job clusters, which is what v1 of v2 uses."
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Resource ID of the Log Analytics workspace. When provided, Databricks diagnostic settings are wired to it. Pass an empty string to skip."
+              }
+            }
+          },
+          "variables": {
+            "managedResourceGroupName": "[toLower(format('databricks-rg-{0}-{1}-{2}', parameters('projectName'), parameters('environment'), uniqueString(resourceGroup().id, parameters('projectName'), parameters('environment'))))]",
+            "workspaceName": "[toLower(format('dbw-{0}-{1}-{2}', parameters('projectName'), parameters('environment'), uniqueString(resourceGroup().id, parameters('projectName'), parameters('environment'))))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Databricks/workspaces",
+              "apiVersion": "2024-05-01",
+              "name": "[variables('workspaceName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "[parameters('databricksSku')]"
+              },
+              "properties": {
+                "managedResourceGroupId": "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('managedResourceGroupName'))]",
+                "publicNetworkAccess": "Enabled"
+              },
+              "tags": {
+                "project": "[parameters('projectName')]",
+                "environment": "[parameters('environment')]"
+              }
+            },
+            {
+              "condition": "[not(empty(parameters('logAnalyticsWorkspaceId')))]",
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "apiVersion": "2021-05-01-preview",
+              "scope": "[resourceId('Microsoft.Databricks/workspaces', variables('workspaceName'))]",
+              "name": "send-logs-to-log-analytics",
+              "properties": {
+                "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
+                "logs": [
+                  {
+                    "category": "workspace",
+                    "enabled": true
+                  }
+                ],
+                "metrics": [
+                  {
+                    "category": "AllMetrics",
+                    "enabled": true
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Databricks/workspaces', variables('workspaceName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "databricksWorkspaceName": {
+              "type": "string",
+              "value": "[variables('workspaceName')]"
+            },
+            "databricksWorkspaceUrl": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Databricks/workspaces', variables('workspaceName')), '2024-05-01').workspaceUrl]"
+            },
+            "databricksManagedIdentityObjectId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Databricks/workspaces', variables('workspaceName')), '2024-05-01', 'full').identity.principalId]"
+            },
+            "databricksManagedIdentityTenantId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Databricks/workspaces', variables('workspaceName')), '2024-05-01', 'full').identity.tenantId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'logAnalytics')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "keyVault",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "projectName": {
+            "value": "[parameters('projectName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "keyVaultSku": {
+            "value": "[parameters('keyVaultSku')]"
+          },
+          "databricksManagedIdentityObjectId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'databricks'), '2025-04-01').outputs.databricksManagedIdentityObjectId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.45.15.27210",
+              "templateHash": "880190579515074040"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region. Inherited from the parent template."
+              }
+            },
+            "projectName": {
+              "type": "string",
+              "metadata": {
+                "description": "Short project slug used in resource naming (e.g. \"weather\")."
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment slug, e.g. \"dev\" or \"prod\"."
+              }
+            },
+            "keyVaultSku": {
+              "type": "string",
+              "defaultValue": "standard",
+              "metadata": {
+                "description": "Key Vault SKU. \"standard\" is fine for the v1 of v2."
+              }
+            },
+            "weatherstackSecretName": {
+              "type": "string",
+              "defaultValue": "weatherstack-api-key",
+              "metadata": {
+                "description": "Name of the Weatherstack secret inside the vault. Must match the name used by deploy.md step 2 and the Databricks notebooks."
+              }
+            },
+            "databricksManagedIdentityObjectId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "AAD object ID of the Databricks workspace managed identity. When empty, the role assignment is skipped (useful for isolated tests)."
+              }
+            }
+          },
+          "variables": {
+            "keyVaultHash": "[take(uniqueString(resourceGroup().id, parameters('projectName'), parameters('environment')), 10)]",
+            "keyVaultName": "[toLower(format('kv-{0}{1}{2}', parameters('projectName'), parameters('environment'), variables('keyVaultHash')))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[variables('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "family": "A",
+                "name": "[parameters('keyVaultSku')]"
+              },
+              "properties": {
+                "tenantId": "[subscription().tenantId]",
+                "enableRbacAuthorization": true,
+                "enableSoftDelete": true,
+                "softDeleteRetentionInDays": 7,
+                "enabledForDeployment": false,
+                "enabledForDiskEncryption": false,
+                "enabledForTemplateDeployment": true,
+                "publicNetworkAccess": "Enabled"
+              },
+              "tags": {
+                "project": "[parameters('projectName')]",
+                "environment": "[parameters('environment')]"
+              }
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/{1}', variables('keyVaultName'), parameters('weatherstackSecretName'))]",
+              "properties": {
+                "value": "replace-me-via-az-cli",
+                "contentType": "text/plain",
+                "attributes": {
+                  "enabled": true
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('databricksManagedIdentityObjectId')))]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+              "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), parameters('databricksManagedIdentityObjectId'), 'kv-secrets-user')]",
+              "properties": {
+                "principalId": "[parameters('databricksManagedIdentityObjectId')]",
+                "principalType": "ServicePrincipal",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "keyVaultName": {
+              "type": "string",
+              "value": "[variables('keyVaultName')]"
+            },
+            "keyVaultUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2023-07-01').vaultUri]"
+            },
+            "weatherstackSecretName": {
+              "type": "string",
+              "value": "[parameters('weatherstackSecretName')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'databricks')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "dataFactory",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "projectName": {
+            "value": "[parameters('projectName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'logAnalytics'), '2025-04-01').outputs.logAnalyticsWorkspaceId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.45.15.27210",
+              "templateHash": "16082063052873325807"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region. Inherited from the parent template."
+              }
+            },
+            "projectName": {
+              "type": "string",
+              "metadata": {
+                "description": "Short project slug used in resource naming (e.g. \"weather\")."
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment slug, e.g. \"dev\" or \"prod\"."
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Resource ID of the Log Analytics workspace. When provided, ADF diagnostic settings are wired to it. Pass an empty string to skip."
+              }
+            }
+          },
+          "variables": {
+            "factoryName": "[toLower(format('adf-{0}-{1}-{2}', parameters('projectName'), parameters('environment'), uniqueString(resourceGroup().id, parameters('projectName'), parameters('environment'))))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.DataFactory/factories",
+              "apiVersion": "2018-06-01",
+              "name": "[variables('factoryName')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "publicNetworkAccess": "Enabled"
+              },
+              "tags": {
+                "project": "[parameters('projectName')]",
+                "environment": "[parameters('environment')]"
+              }
+            },
+            {
+              "condition": "[not(empty(parameters('logAnalyticsWorkspaceId')))]",
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "apiVersion": "2021-05-01-preview",
+              "scope": "[resourceId('Microsoft.DataFactory/factories', variables('factoryName'))]",
+              "name": "send-logs-to-log-analytics",
+              "properties": {
+                "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
+                "logs": [
+                  {
+                    "category": "PipelineRuns",
+                    "enabled": true
+                  },
+                  {
+                    "category": "TriggerRuns",
+                    "enabled": true
+                  },
+                  {
+                    "category": "ActivityRuns",
+                    "enabled": true
+                  }
+                ],
+                "metrics": [
+                  {
+                    "category": "AllMetrics",
+                    "enabled": true
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories', variables('factoryName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "dataFactoryName": {
+              "type": "string",
+              "value": "[variables('factoryName')]"
+            },
+            "dataFactoryManagedIdentityObjectId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.DataFactory/factories', variables('factoryName')), '2018-06-01', 'full').identity.principalId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'logAnalytics')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "storageAccountName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.storageAccountName.value]"
+    },
+    "primaryBlobEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.primaryBlobEndpoint.value]"
+    },
+    "bronzeContainerName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.bronzeContainerName.value]"
+    },
+    "silverContainerName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.silverContainerName.value]"
+    },
+    "goldContainerName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.goldContainerName.value]"
+    },
+    "configContainerName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.configContainerName.value]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyVault'), '2025-04-01').outputs.keyVaultName.value]"
+    },
+    "keyVaultUri": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyVault'), '2025-04-01').outputs.keyVaultUri.value]"
+    },
+    "databricksWorkspaceName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'databricks'), '2025-04-01').outputs.databricksWorkspaceName.value]"
+    },
+    "databricksWorkspaceUrl": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'databricks'), '2025-04-01').outputs.databricksWorkspaceUrl.value]"
+    },
+    "dataFactoryName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'dataFactory'), '2025-04-01').outputs.dataFactoryName.value]"
+    },
+    "logAnalyticsWorkspaceName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'logAnalytics'), '2025-04-01').outputs.logAnalyticsWorkspaceName.value]"
+    }
+  }
+}

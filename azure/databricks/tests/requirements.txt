@@ -1,0 +1,13 @@
+# v2 (Azure) unit tests — pyspark-only. The schema and cleansing tests
+# only need pyspark (which Databricks Runtime ships with).
+#
+# Run with:
+#     pip install -r azure/databricks/tests/requirements.txt
+#     python azure/databricks/tests/test_silver_schema.py
+#
+# Why we deliberately avoid pytest + chispa here:
+#   * chispa brings in py4j and a heavier Spark stack; the schema tests
+#     only need the StructType constructors.
+#   * stdlib unittest runs on any Python 3.x without extra infra — the
+#     test file doubles as living documentation of the contract.
+pyspark==3.5.1
