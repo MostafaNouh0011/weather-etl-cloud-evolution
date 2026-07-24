@@ -64,34 +64,21 @@ All components run in Docker — no local Python, Postgres, or Airflow install n
 
 ```
 weather_etl_pipeline/
-├── dags/                              # Airflow DAGs
-│   └── weather_pipeline_dag.py
-├── src/                               # ETL logic
-│   ├── extract.py
-│   ├── transform.py
-│   └── load.py
-├── sql/                               # Schema bootstrap
-│   └── init.sql
-├── logs/                              # Airflow logs (gitignored, generated)
-├── plugins/                           # Airflow plugins
-├── shared/                            # Shared between v1 and v2
-│   └── cities.json                    # Canonical 10-city list
-├── docs/                              # Documentation
-│   ├── evolution.md                   # v1 → v2 migration story
-│   ├── architecture/
-│   │   ├── v1-local.png
-│   │   ├── v2-azure.png
-│   │   └── comparison.md
-│   ├── ETL_DAG.png
-│   ├── analytics_output.png
-│   ├── pipeline_architecture.png
-│   └── raw_output.png
-├── .env.example                       # Environment template (copy to .env)
-├── docker-compose.yaml                # 4 services: webserver, scheduler, 2 Postgres
-├── Dockerfile                         # Custom Airflow image
-├── requirements.txt                   # Python dependencies
-├── Makefile                           # Convenience commands
-└── README.md                          # ← you are here
+├── dags/
+│   └── weather_pipeline_dag.py    # Airflow DAG defining the ETL tasks
+├── src/
+│   ├── extract.py                 # Fetches data from Weatherstack API
+│   ├── transform.py               # Cleans and transforms the data
+│   └── load.py                    # Loads data into PostgreSQL
+├── sql/
+│   └── init.sql                   # Creates database tables on startup
+├── logs/                          # Airflow logs (generated automatically)
+├── plugins/                       # Airflow plugins (for extensions)
+├── .env                           # Environment variables (configure API keys, etc.)
+├── docker-compose.yaml            # Defines Docker services
+├── Dockerfile                     # Builds the custom Airflow image
+├── requirements.txt               # Python dependencies
+└── README.md                      # This file
 ```
 
 ### Prerequisites
@@ -158,16 +145,20 @@ docker compose exec weather_postgres psql -U weather_user -d weather_db
 
 ```sql
 -- View recent raw data
-SELECT city, temperature_c, humidity, ingested_at
+SELECT city, temperature_c, ingested_at
 FROM raw.weather_raw
 ORDER BY ingested_at DESC
 LIMIT 5;
+```
+![Raw Output](docs/raw_output.png)
 
+```sql
 -- View summary data
-SELECT city, record_date, avg_temperature_c, total_records
+SELECT city, country, record_date, avg_temperature_c, max_temperature_c, min_temperature_c, avg_humidity, avg_wind_speed_kmh, dominant_condition, total_records, last_updated
 FROM analytics.weather_summary
 ORDER BY record_date DESC;
 ```
+![Summary Output](docs/analytics_output.png)
 
 ### v1 DAG details
 
